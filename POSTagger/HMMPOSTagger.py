@@ -2,7 +2,7 @@ import os.path
 from collections import defaultdict
 
 
-class FileNotFoundError(Exception):
+class MiniFileNotFoundError(Exception):
     pass
 
 
@@ -21,7 +21,7 @@ class HMMPOSTagger:
         self.alpha = 0.95
 
         if not os.path.isfile(conll2000_path):
-            raise FileNotFoundError
+            raise MiniFileNotFoundError
 
         self.corpus_path = conll2000_path
 
@@ -56,8 +56,8 @@ class HMMPOSTagger:
             for label in self.labels_no:
                 if label in self.emission and word in self.emission[label] and label in self.labels_no:
                     self.emission_probabilities[word][label] = self.alpha * (
-                    self.emission[label][word] / float(self.labels_no[label])) + (1 - self.alpha) * (
-                    1 / len(self.labels_no))
+                        self.emission[label][word] / float(self.labels_no[label])) + (1 - self.alpha) * (
+                        1 / len(self.labels_no))
                 else:
                     self.emission_probabilities[word][label] = (1 - self.alpha) * (1 / len(self.labels_no))
 
@@ -66,26 +66,29 @@ class HMMPOSTagger:
             for label1 in self.labels_no:
                 if label0 in self.transition and label1 in self.transition[label0]:
                     self.transition_probabilities[label1][label0] = self.alpha * (
-                    self.transition[label0][label1] / float(self.labels_no[label0])) + \
+                        self.transition[label0][label1] / float(self.labels_no[label0])) + \
                                                                     (1 - self.alpha) * (
-                                                                    self.labels_no[label1] / float(len(self.labels_no)))
+                                                                        self.labels_no[label1] / float(
+                                                                            len(self.labels_no)))
                 else:
                     self.transition_probabilities[label1][label0] = (1 - self.alpha) * (
-                    self.labels_no[label1] / float(len(self.labels_no)))
+                        self.labels_no[label1] / float(len(self.labels_no)))
 
     def tagger(self, test_data):
-        """ viterbi algorithm """
+        """ viterbi algorithm
+        :param test_data:
+        """
         test_labels, test_observations = self.__prepare_test_corpus(test_data)
 
-        V = [{}]
+        v = [{}]
         path = {}
 
         for label in self.labels_no:
-            V[0][label] = self.emission_probabilities[test_observations[0]][label]
+            v[0][label] = self.emission_probabilities[test_observations[0]][label]
             path[label] = [label]
 
-        for t in xrange(1, len(test_observations)):
-            V.append({})
+        for t in range(1, len(test_observations)):
+            v.append({})
             new_path = {}
 
             for label in self.labels_no:
@@ -94,17 +97,17 @@ class HMMPOSTagger:
 
                 for label0 in self.labels_no:
                     try:
-                        prob = V[t - 1][label0] * \
+                        prob = v[t - 1][label0] * \
                                self.transition_probabilities[label][label0] * \
                                self.emission_probabilities[test_observations[t]][label]
                     except:
-                        prob = V[t - 1][label0] * self.transition_probabilities[label][label0]
+                        prob = v[t - 1][label0] * self.transition_probabilities[label][label0]
 
                     if prob >= best_prob:
                         best_prob = prob
                         best_label = label0
 
-                V[t][label] = best_prob
+                v[t][label] = best_prob
                 new_path[label] = path[best_label] + [label]
 
             path = new_path
@@ -113,13 +116,13 @@ class HMMPOSTagger:
         if len(test_observations) != 1:
             n = t
 
-        (best_prob, best_label) = max((V[n][y], y) for y in self.labels_no)
+        (best_prob, best_label) = max((v[n][y], y) for y in self.labels_no)
         best_labels = path[best_label]
 
         error = 0.0
         all_test = len(test_observations)
         for test_label, hmm_table in zip(test_labels, best_labels):
-            if test_label <> hmm_table:
+            if test_label != hmm_table:
                 error += 1
 
         return best_prob, best_labels, (all_test - error) / all_test
@@ -129,7 +132,7 @@ class HMMPOSTagger:
 
     def __prepare_test_corpus(self, corpus_path):
         if not os.path.isfile(corpus_path):
-            raise FileNotFoundError
+            raise MiniFileNotFoundError
 
         labels = []
         observations = []
